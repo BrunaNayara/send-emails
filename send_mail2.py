@@ -6,7 +6,14 @@ import smtplib
 # https://docs.python.org/3.4/library/email-examples.html
 from email.mime.text import MIMEText
 
+# Import Beautiful Soup to parse html
 from bs4 import BeautifulSoup
+
+# Import getpass
+import getpass
+
+# Import csv reader
+import csv
 
 ##### Beautiful Soup methods
 # Get email template
@@ -30,6 +37,12 @@ def change_sender_name(sender, template):
 
     return template
 
+# Change custom word
+def change_secret_word(word, template):
+    greetings = template.select_one("#secret-word")
+    greetings.string = "{}".format(word)
+
+    return template
 
 ##### Email and mime methods
 # create mail message
@@ -43,6 +56,7 @@ def create_mail(subject, body, sender):
 # create custom mail (change greetings)
 def create_custom_mail(subject, body, receiver, sender):
     soup = custom_greeting(receiver['name'], body)
+    soup = change_secret_word(receiver['word'], body)
 
     subject = receiver['name'] + ", " + subject
 
@@ -58,6 +72,10 @@ def change_receiver(receiver, msg):
     return msg
 
 ##### SMTP methods
+def get_pass():
+    return getpass.getpass(prompt='Password:')
+
+
 # send email
 def send(msg):
     # get sender mail from file
@@ -67,6 +85,9 @@ def send(msg):
     # get password from file
     with open("pw.txt") as f:
         p = f.readline()
+
+    # get using getpass
+    # p = get_pass()
 
     server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
     server.login(me, p)
@@ -79,26 +100,36 @@ def send_to_list(mail_list, msg):
         send_to_one(receiver, msg)
 
 def send_to_one(receiver, msg):
+    print("sending to " + receiver['name'])
     msg = change_receiver(receiver, msg)
     send(msg)
 
-def prepare_message(template_file, sender):
+def prepare_message(template_file, sender, subject):
     soup = get_template(template_file)
     soup = change_sender_name(sender, soup)
-    mail = create_mail("subject", soup)
+    mail = create_mail(subject, soup, sender)
 
     return mail
 
+##### CSV functions
+def get_maillist_from_csv(csv_file):
+    maillist = []
+    with open(csv_file, newline='') as csvfile:
+        c = csv.reader(csvfile, delimiter=',', quotechar='|')
+        for row in c:
+            m = dict([('name', row[0]), ('email', row[1]), ('word', row[2])])
+            maillist.append(m)
+            print(row[0])
 
-def main():
+    return maillist
+
+##### Example fucntions
+
+def send_same_email(maillist):
     tf = "email_template.html"
     me = "Bruna"
-    mail = prepare_message(tf, me)
+    subject = "Esse é o assunto"
 
-    r1 = {'name':"Bruna", 'email':"aaaaa@gmail.com" }
-    r2 = {'name':"Brenda", 'email':"aaaaa@gmail.com" }
-    r3 = {'name':"Matheus", 'email':"aaaaaa@gmail.com" }
-    maillist = [r1, r2, r3]
 
     print("send one")
     send_to_one(r1, mail)
@@ -106,20 +137,17 @@ def main():
     send_to_list(maillist, mail)
 
 
-def send_custom_mails():
+def send_custom_mails(maillist):
     tf = "email_template.html"
     me = "Bruna"
     subject = "Assunto personalizado"
 
-    r1 = {'name':"Bruna", 'email':"aaaaaa@gmail.com" }
-    r2 = {'name':"Brenda", 'email':"aaaaa@gmail.com" }
-    r3 = {'name':"Matheus", 'email':"aaaaaaa@gmail.com" }
-    maillist = [r1, r2, r3]
 
     body = get_template(tf)
 
     for receiver in maillist:
         mail = create_custom_mail(subject, body, receiver, me)
+
         send_to_one(receiver, mail)
 
 
@@ -127,8 +155,11 @@ def send_custom_mails():
 def main():
     # TODO change main to send custom mail to the list
 
-    # send_same_email()
-    send_custom_mails()
+    csv_file = 'maillist.csv'
+    maillist = get_maillist_from_csv(csv_file)
+
+    # send_same_email(maillist)
+    send_custom_mails(maillist)
 
 
 
