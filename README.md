@@ -20,6 +20,7 @@ docker build -t <tag-name> .
 
 ### Run your script
 
+To run this script you need 2 files in your folder: mail.txt and pw.txt.
 Run your script.
 ```
 sudo docker run -it <tag-name> python send_mail.py
